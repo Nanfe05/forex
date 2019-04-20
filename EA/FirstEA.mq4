@@ -20,14 +20,14 @@ datetime NextTick();
 
 // Variables opcionales desde el editor
 extern int extMACorto = 20 ; 
-extern int extMALargo = 100 ; // tambien usada para promedio,max,min de acercamiento
-extern int maxCruceCounter = 10; // evalua que tan lejos(antiguo) sera tomado encuenta un cruce. Numero de velas .. maximo valor para evaluar la veracidad del cruce
+extern int extMALargo = 200 ; // tambien usada para promedio,max,min de acercamiento
+extern int maxCruceCounter = 60; // evalua que tan lejos(antiguo) sera tomado encuenta un cruce. Numero de velas .. maximo valor para evaluar la veracidad del cruce
 
 
 // Declare needed Variables for executing strategy
 bool cruceReciente = false; // Cruce entre MA corto y largo
 int cruceCounter = 0;      // cuenta cuantas velas han transcurrido desde el ultimo cruce 
-string tendencia; // describe la tendencia actual ("bullish","bearish","flatten") - tendencia corta basada en MA corto
+int tendencia; // describe la tendencia actual ("bullish"-2,"bearish"-0,"flatten"-1) - tendencia corta basada en MA corto
 double aproxAvgMax; // promedio de aproximacion to MA corto - VALOR MAXIMO // calculado con ultimas (MA largo) velas
 double aproxAvg;     // promedio de aproximacion to MA corto - VALOR PROMEDIO // calculado con ultimas (MA largo) velas
 double aproxAvgMin;  // promedio de aproximacion to MA corto - VALOR MINIMO // calculado con ultimas (MA largo) velas
@@ -36,7 +36,7 @@ double aproxAvgMin;  // promedio de aproximacion to MA corto - VALOR MINIMO // c
 
 
 // 1. Declarar cual es la vela que sigue
-      datetime nextTick = NextTick();
+datetime nextTick = NextTick();
 
 int OnInit()
   {
@@ -63,31 +63,38 @@ void OnDeinit(const int reason)
 void OnTick()
   {
 //---
-   bool esJornadaLaborable = JornadaLaborable();
-   if (esJornadaLaborable)
+
+// First check open positions 
+
+
+// then...
+   if (JornadaLaborable())
    {                              
      // execute strategy 
      Alert(" --- ");
-                           
-     Alert("Executing Custom Code ...");
-      // Call for iMA - teniendo en cuenta la ultima vela cerrada [1]
-      double valMACorto = iMA(Symbol(), Period(),extMACorto, 0,0,0,1);
-      double valMALargo = iMA(Symbol(), Period(),extMALargo, 0,0,0,1);
-                  Alert("El MA Corto es: " + PrintNumber(valMACorto));
-                  Alert("El MA Largo es: " + PrintNumber(valMALargo));
-                  Alert(" --- ");
+     if (EvaluationMA())
+     {                      
+        Alert("Executing Custom Code ...");
+        Alert (tendencia);
+        Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
+     }else
+     {
+        //Alert("Nothing to Execute ... ");
+        Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
+     }
+     Alert(" --- ");
    }
    
    
   }
 //+------------------------------------------------------------------+
 
- //Asigna la siguiente vela teniendo encuenta la presente - retorna la siguiente vela
-  datetime NextTick()
-  {
-   datetime val1 = Time[0] + (Period()*60/*Convierte Minutos To Segundos*/);
-   return val1;
-  }
+//Asigna la siguiente vela teniendo encuenta la presente - retorna la siguiente vela
+datetime NextTick()
+{
+datetime val1 = Time[0] + (Period()*60/*Convierte Minutos To Segundos*/);
+return val1;
+}
   
  // Evalua si estamos en una jornada laborable - retorna boolean
  bool JornadaLaborable()
@@ -123,9 +130,100 @@ void OnTick()
            return false;   
  }
  // Evalua cruces MA - retorna boolean indicando primer filtro de compra
+ bool EvaluationMA ()
+ {
+   // declarar MA's a utilizar (default 200 && 20) -> teniendo en cuenta la ultima vela cerrada [1]
+   double valMACorto, valMALargo;
+   
+   // Lista para evaluar un posible cambio de tendencia
+   int tendency[];
+   ArrayResize(tendency, maxCruceCounter);
+   int y = 0 ; // variable para controlar la lista de tendencias
+   
+   cruceReciente = false;
+   cruceCounter = 0 ; // realmente necesito resetear esto ? /////////////////////////////////
+   
+// evaluar si recientemente ha cambiado la tendencia -> desde vela mas antigua a actual
+      for (int i = maxCruceCounter; i > 0 ; i--)
+      {
+               valMACorto = iMA(Symbol(), Period(),extMACorto, 0,0,0,i);
+               valMALargo = iMA(Symbol(), Period(),extMALargo, 0,0,0,i);
+               
+               if (valMACorto >= valMALargo)
+               {  tendencia = 2; }
+               else
+               { tendencia = 0;} 
+               ArrayFill(tendency,y,1,tendencia);
+               if (y >= 1)//(ArraySize(tendency) >= 2 )
+               {
+                  if (tendency[y] != tendency[y-1])
+                  {
+                     tendencia = tendencia == 2 ?  0 :  2; 
+                     cruceReciente = true ;
+                  }
+               }
+               y ++;
+               if (cruceReciente)
+               {
+                  cruceCounter ++;
+               }        
+         }
+         ArrayFree(tendency); 
+   if (cruceCounter <= maxCruceCounter && cruceCounter > 0)
+   {
+         // testear si la tendencia coincide con los promdios de los MA 
+         AvgMA(aproxAvgMax, aproxAvg, aproxAvgMin);
+         double tempTickClose = Close[1];
          
-  
-  
+         Alert("Precio de Cierre: ",DoubleToStr(Close[1]));
+         Alert("Avg Max: ", DoubleToStr(aproxAvgMax));
+         Alert("Avg: ", DoubleToStr(aproxAvg));
+         Alert("Avg Min: ", DoubleToStr(aproxAvgMin));
+         return true;
+         
+         // TEMPORALY COMMENT FOR DEBUGGING REASONS
+         /*if( tendencia == 2 && tempTickClose > aproxAvg && tempTickClose < aproxAvgMax)
+         {
+         return true;
+         }
+         else if (tendencia == 0 && tempTickClose > aproxAvgMin && tempTickClose < aproxAvg)
+         {
+         return true;
+         }*/
+   }
+   return false;
+}        
+
+// Average MA distances to decide if entries are good or no 
+void AvgMA(double &maxAvg, double &avg , double &minAvg)
+{
+   int sizeToAvg = extMALargo;
+   double maCorto, maLargo;
+    
+   double diferencias[];
+   ArrayResize(diferencias,sizeToAvg);
+   
+   double dif;
+   double sumatoriaavg = 0;
+
+   for (int i = (sizeToAvg-1) ; i > 0 ; i-- )// no puede llegar a 0 porque es la vela que no se ha terminado de formar
+   {
+      maCorto = iMA(Symbol(), Period(),sizeToAvg, 0,0,0,i);
+      maLargo = iMA(Symbol(), Period(),sizeToAvg, 0,0,0,i);
+      
+      dif = MathAbs(maLargo - maCorto);
+      sumatoriaavg += dif;
+      ArrayFill(diferencias,i,1,dif);
+   }
+   // ASIGNANDO VARIABLES DE SALIDA
+   ArraySort(diferencias,WHOLE_ARRAY,0,MODE_DESCEND);
+   maxAvg =  diferencias[1];
+   
+   avg = (sumatoriaavg/sizeToAvg); // assign average of distances
+   
+   ArraySort(diferencias,WHOLE_ARRAY,0,MODE_ASCEND);
+   minAvg = diferencias[1];
+}  
   
   
 //=============================== FUNCIONES PARA DEBUG ============================
