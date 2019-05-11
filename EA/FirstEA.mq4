@@ -24,6 +24,12 @@ extern int extMALargo = 200 ; // tambien usada para promedio,max,min de acercami
 extern int maxCruceCounter = 60; // evalua que tan lejos(antiguo) sera tomado encuenta un cruce. Numero de velas .. maximo valor para evaluar la veracidad del cruce
 extern int percentageTickBody = 80 ; // porcentaje para evaluar si una vela es un velon 
 extern int percentageTickShadow = 70 ; // porcentaje para evaluar si la sombra de un vela la convierte en un martillo
+extern int thresholdEnterPrice = 1; // diferencia con el ultimo cierre si es mayor o menor entrar en operacion en pips
+extern double maxRiskPerTrade = 2; // maximo valor del balance que se esta dispuesto a perder por transaccion
+extern int takeProfit = 0; // in pips amount, if take profit = 0 -> usar formula especial para definirlo
+extern int stopLoss = 0; // in pips , if equal to 0 stopLoss = takeProfit * riskToRewardRatio
+extern double riskToRewardRatio = 0.3; // 0.3 seria como 1/3 de el take profit
+
 
 // Declare needed Variables for executing strategy
 bool cruceReciente = false; // Cruce entre MA corto y largo
@@ -69,29 +75,58 @@ void OnTick()
 
 
 // then...
-   if (JornadaLaborable())
-   {                              
-     // execute strategy 
-     //Alert(" --- ");
-     if (EvaluationMA())
-     {   
-        // Chekear si es una buena vela para entrar en posicion
-        if(IsRightTick(tendencia))
-        {              
-           Alert(" --- ");     
-           Alert("Executing Custom Code ...");
-           Alert ("tendencia : ", IntegerToString(tendencia));
-           Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
-           Alert(" --- ");
-        }
-     }else
-     {
-        //Alert("Nothing to Execute ... ");
-        //Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
-     }
-     //Alert(" --- ");
-   }
-   
+
+   if (OrdersTotal() == 0)    // por ahora se ejecuta si no hay posiciones abiertas, luego toca adaptarlo para qur trabaje con varias posiciones y si no hay ninguna abierta con esta divisa
+   {
+         if (JornadaLaborable())
+         {                              
+           // execute strategy 
+           //Alert(" --- ");
+           if (EvaluationMA())
+           {   
+              // Chekear si es una buena vela para entrar en posicion
+              if(IsRightTick(tendencia))
+              {  
+                 /*    
+                 Alert(" --- ");     
+                 Alert("Executing Custom Code ...");
+                 Alert ("tendencia : ", IntegerToString(tendencia));
+                 Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
+                 Alert(" --- ");
+                 */
+                 
+              }
+           }else
+           {
+              //Alert("Nothing to Execute ... ");
+              //Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
+           }
+           //Alert(" --- ");
+         }
+         
+         switch(tendencia)
+                 {
+                 case 2:
+                  // chekea en cada movimiento si el precio supero el threshold para entrar
+                  if(Close[0] > (Close[1]+(thresholdEnterPrice*(Point*10))))
+                  {
+                     Compra();
+                  }
+                  break;
+                 case 0:
+                 // chekea en cada movimiento si el precio supero el threshold para entrar
+                  if (Close[0] > (Close[1]-(thresholdEnterPrice*(Point*10))))
+                  {
+                     Venta();
+                  }
+                  break;
+                           
+                 }    
+    }
+    
+    
+    
+    
    
   }
 //+------------------------------------------------------------------+
@@ -323,6 +358,43 @@ bool IsRightTick(int tendency)
    
    
    return false;
+}
+
+
+// Crear orden de Compra
+bool Compra()
+{
+
+// use max risk per trade 
+
+   return false;
+}
+
+
+// Crear Orden de Venta 
+bool Venta ()
+{
+
+// use max risk per trade 
+
+
+   return false;
+}
+
+double LotSize ()
+{
+   double lotSize;
+   double tickValue = (MarketInfo(Symbol(),MODE_TICKVALUE));
+   // Normalizing tick values
+   if (Digits == 5 || Digits == 3)
+   {
+      tickValue *= 10;
+   }
+   
+   lotSize = 
+   
+   
+
 }
 
 //=============================== FUNCIONES PARA DEBUG ============================
