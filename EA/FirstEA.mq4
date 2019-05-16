@@ -25,11 +25,11 @@ extern int maxCruceCounter = 60; // evalua que tan lejos(antiguo) sera tomado en
 extern int percentageTickBody = 80 ; // porcentaje para evaluar si una vela es un velon 
 extern int percentageTickShadow = 70 ; // porcentaje para evaluar si la sombra de un vela la convierte en un martillo
 extern int thresholdEnterPrice = 1; // diferencia con el ultimo cierre si es mayor o menor entrar en operacion en pips
-extern double maxRiskPerTrade = 2; // maximo valor del balance que se esta dispuesto a perder por transaccion
-extern int takeProfit = 0; // in pips amount, if take profit = 0 -> usar formula especial para definirlo
+extern double maxRiskPerTrade = 1.5; // maximo valor del balance que se esta dispuesto a perder por transaccion
+extern int takeProfit = 0; // in pips amount, if take profit = 0 -> calcular stoploss * riskToRewardRatio
 extern int stopLoss = 0; // in pips , if equal to 0 stopLoss = takeProfit * riskToRewardRatio
-extern double riskToRewardRatio = 0.3; // 0.3 seria como 1/3 de el take profit
-
+extern double riskToRewardRatio = 2; // multiplica stoploss * this number
+extern int slippage = 2; // for buy and sell orders 
 
 // Declare needed Variables for executing strategy
 bool cruceReciente = false; // Cruce entre MA corto y largo
@@ -110,14 +110,21 @@ void OnTick()
                   // chekea en cada movimiento si el precio supero el threshold para entrar
                   if(Close[0] > (Close[1]+(thresholdEnterPrice*(Point*10))))
                   {
-                     Compra();
+                     if(Compra())
+                     {
+                        Alert("Orden de Compra,Ingreso exitoso");
+                     }
                   }
                   break;
                  case 0:
                  // chekea en cada movimiento si el precio supero el threshold para entrar
                   if (Close[0] > (Close[1]-(thresholdEnterPrice*(Point*10))))
                   {
-                     Venta();
+                     if(Venta())
+                     {
+                        Alert("Orden de Venta,Ingreso exitoso");
+                     }
+                     
                   }
                   break;
                            
@@ -364,8 +371,15 @@ bool IsRightTick(int tendency)
 // Crear orden de Compra
 bool Compra()
 {
-
-// use max risk per trade 
+   double ls = LotSize() ;// lot size// use max risk per trade 
+   double price = Ask;
+   double sl = NormalizeDouble(Bid - (CrearStopLoss()*Point),Digits);
+   double tp = NormalizeDouble(Bid - (CrearTakeProfit()*Point),Digits);
+   
+   if( OrderSend(Symbol(),OP_BUY,ls,price,slippage,sl,tp,"BUY",0,0,clrNONE ) )
+   {
+   return true;
+   }
 
    return false;
 }
@@ -374,8 +388,15 @@ bool Compra()
 // Crear Orden de Venta 
 bool Venta ()
 {
-
-// use max risk per trade 
+   double ls = LotSize() ;// lot size// use max risk per trade 
+   double price = Bid;
+   double sl = NormalizeDouble(Ask - (CrearStopLoss()*Point),Digits);
+   double tp = NormalizeDouble(Ask - (CrearTakeProfit()*Point),Digits);
+   
+   if( OrderSend(Symbol(),OP_SELL,ls,price,slippage,sl,tp,"SELL",0,0,clrNONE))
+   {
+   return true;
+   }
 
 
    return false;
@@ -383,6 +404,9 @@ bool Venta ()
 
 double LotSize ()
 {
+   
+   double sl = stopLoss != 0 ? stopLoss : CrearStopLoss();
+   
    double lotSize;
    double tickValue = (MarketInfo(Symbol(),MODE_TICKVALUE));
    // Normalizing tick values
@@ -391,10 +415,37 @@ double LotSize ()
       tickValue *= 10;
    }
    
-   lotSize = 
+   lotSize = ((AccountBalance()*maxRiskPerTrade)/100)/(sl * tickValue);
+   lotSize = MathRound(lotSize/MarketInfo(Symbol(),MODE_LOTSTEP))*MarketInfo(Symbol(),MODE_LOTSTEP);
    
-   
+   return lotSize;
 
+}
+
+double CrearStopLoss()
+{
+   
+   double sl = MathAbs(Close[1] - Open [1])  ;
+  
+   double tempVal = 1; // valor para multiplicar y redondear  
+   for(int i=1;i <= (Digits) ; i++)
+   {
+      tempVal *= 10;
+   }
+   
+   // debe ser pasado a pips enteros para luego maultiplicar * point
+   sl = sl*tempVal;
+   return sl;
+}
+
+double CrearTakeProfit()
+{
+   
+   double sl = CrearStopLoss();
+   
+   sl = sl * riskToRewardRatio; 
+   
+   return sl;
 }
 
 //=============================== FUNCIONES PARA DEBUG ============================

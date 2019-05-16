@@ -10,9 +10,65 @@
 //+------------------------------------------------------------------+
 //| Script program start function                                    |
 //+------------------------------------------------------------------+
+/*
+extern double maxRiskPerTrade = 1.5;
+double LotSize (){
+
+   double sl = 20.5;
+
+   double lotSize;
+   double tickValue = (MarketInfo(Symbol(),MODE_TICKVALUE));
+   // Normalizing tick values
+   if (Digits == 5 || Digits == 3)
+   {
+      tickValue *= 10;
+   }
+   
+   lotSize = ((AccountBalance()*maxRiskPerTrade)/100)/(sl * tickValue);
+   lotSize = MathRound(lotSize/MarketInfo(Symbol(),MODE_LOTSTEP))*MarketInfo(Symbol(),MODE_LOTSTEP);
+   
+   Alert("Lot Size: ", DoubleToStr(lotSize));
+   
+   return lotSize;
+
+}*/
+
+double CrearStopLoss()
+{
+
+   
+   double sl = MathAbs(Close[1] - Open [1])  ;
+   
+   double tempVal = 1; // valor para multiplicar y redondear  
+   
+   for(int i=1;i <= (Digits) ; i++)
+   {
+      tempVal *= 10;
+   }
+   Alert("valor para redondear: ", tempVal);
+   sl = sl*tempVal;
+   Alert("stop loss in pips: ", DoubleToStr(sl));
+   Alert("stop loss in pips * Point: ", DoubleToStr(sl*Point));
+   return sl;
+}
+
+
 void OnStart()
   {
+  
+  
+CrearStopLoss();  
+
+//Alert("Digits: ", Digits);
 //---
+
+//LotSize();
+
+
+
+
+
+/*
    Alert("MODE_LOTSTEP: ",DoubleToStr(MarketInfo(Symbol(),MODE_LOTSTEP)));
    Alert("-----");
    Alert("Tick Value: ",DoubleToStr(MarketInfo(Symbol(),MODE_TICKVALUE)));
@@ -29,7 +85,7 @@ void OnStart()
    //Alert("Margin Call Mode: ",DoubleToStr(MarketInfo(Symbol(),MODE_MARGINCALCMODE)));
    Alert(Symbol());
    Alert("-----");
-   
+  */ 
    //Alert("Spread: ", DoubleToStr(MarketInfo(Symbol(),MODE_SPREAD)));
    //Alert("Ask: ", Ask);
    //Alert("Bid: ", Bid);
