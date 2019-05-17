@@ -20,16 +20,18 @@ datetime NextTick();
 
 // Variables opcionales desde el editor
 extern int extMACorto = 20 ; 
-extern int extMALargo = 200 ; // tambien usada para promedio,max,min de acercamiento
-extern int maxCruceCounter = 60; // evalua que tan lejos(antiguo) sera tomado encuenta un cruce. Numero de velas .. maximo valor para evaluar la veracidad del cruce
-extern int percentageTickBody = 80 ; // porcentaje para evaluar si una vela es un velon 
-extern int percentageTickShadow = 70 ; // porcentaje para evaluar si la sombra de un vela la convierte en un martillo
-extern int thresholdEnterPrice = 1; // diferencia con el ultimo cierre si es mayor o menor entrar en operacion en pips
-extern double maxRiskPerTrade = 1.5; // maximo valor del balance que se esta dispuesto a perder por transaccion
-extern int takeProfit = 0; // in pips amount, if take profit = 0 -> calcular stoploss * riskToRewardRatio
-extern int stopLoss = 0; // in pips , if equal to 0 stopLoss = takeProfit * riskToRewardRatio
-extern double riskToRewardRatio = 2; // multiplica stoploss * this number
-extern int slippage = 2; // for buy and sell orders 
+extern int extMALargo = 200 ;             //extMALargo // tambien usada para promedio,max,min de acercamiento
+extern int maxCruceCounter = 60;          //maxCruceCounter // evalua que tan lejos(antiguo) sera tomado encuenta un cruce. Numero de velas .. maximo valor para evaluar la veracidad del cruce
+extern int percentageTickBody = 80 ;      //percentageTickBody // porcentaje para evaluar si una vela es un velon 
+extern int percentageTickShadow = 70 ;    //percentageTickShadow // porcentaje para evaluar si la sombra de un vela la convierte en un martillo
+extern int thresholdEnterPrice = 2;       //thresholdEnterPrice // diferencia con el ultimo cierre si es mayor o menor entrar en operacion en pips
+extern double maxRiskPerTrade = 1.5;      // maximo valor del balance que se esta dispuesto a perder por transaccion
+extern int takeProfit = 0;                //takeProfit // in pips amount, if take profit = 0 -> calcular stoploss * riskToRewardRatio
+extern int stopLoss = 0;                  //stopLoss // in pips , if equal to 0 stopLoss = takeProfit * riskToRewardRatio
+extern double riskToRewardRatio = 2;      //riskToRewardRatio// multiplica stoploss * this number
+extern int slippage = 2;                  //slippage// for buy and sell orders 
+extern double minTickBodySize = 15 ;      //minTickBodySize// to avoid velas de incertidumbre
+extern double minPosibleStopLoss = 10;    //minPosibleStopLoss// if for some reason stoploss is less than it, it will be fixed
 
 // Declare needed Variables for executing strategy
 bool cruceReciente = false; // Cruce entre MA corto y largo
@@ -39,7 +41,7 @@ double aproxAvgMax; // promedio de aproximacion to MA corto - VALOR MAXIMO // ca
 double aproxAvg;     // promedio de aproximacion to MA corto - VALOR PROMEDIO // calculado con ultimas (MA largo) velas
 double aproxAvgMin;  // promedio de aproximacion to MA corto - VALOR MINIMO // calculado con ultimas (MA largo) velas
 double aproxAvg20Ma; // variable para evaluar como esta la aproximacion rapida dentro de la lenta 
-
+bool enEstadoDeCompra = false;
 
 
 // 1. Declarar cual es la vela que sigue
@@ -48,10 +50,13 @@ datetime nextTick = NextTick();
 int OnInit()
   {
 //---
+         
+       /*
        Alert(" --- ");
        Alert("Inicio EA, NEXT TICK: " + GritarTiempo(nextTick));
        Alert("Vela Actual: " + GritarTiempo(TimeCurrent()));
        Alert(" --- ");
+       */
 //---
    return(INIT_SUCCEEDED);
   }
@@ -87,48 +92,70 @@ void OnTick()
               // Chekear si es una buena vela para entrar en posicion
               if(IsRightTick(tendencia))
               {  
-                 /*    
-                 Alert(" --- ");     
-                 Alert("Executing Custom Code ...");
-                 Alert ("tendencia : ", IntegerToString(tendencia));
-                 Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
-                 Alert(" --- ");
-                 */
+              
+                 enEstadoDeCompra = true;
+                
                  
               }
-           }else
-           {
-              //Alert("Nothing to Execute ... ");
-              //Alert("Ahora Actual: ", GritarTiempo(TimeCurrent()));
+              else 
+              {
+               enEstadoDeCompra = false;
+              }
            }
-           //Alert(" --- ");
+           else
+           {
+               enEstadoDeCompra = false;
+              
+           }
+           
+         }
+         else
+         {
+               enEstadoDeCompra = false;
          }
          
-         switch(tendencia)
-                 {
-                 case 2:
-                  // chekea en cada movimiento si el precio supero el threshold para entrar
-                  if(Close[0] > (Close[1]+(thresholdEnterPrice*(Point*10))))
-                  {
-                     if(Compra())
-                     {
-                        Alert("Orden de Compra,Ingreso exitoso");
-                     }
-                  }
-                  break;
-                 case 0:
-                 // chekea en cada movimiento si el precio supero el threshold para entrar
-                  if (Close[0] > (Close[1]-(thresholdEnterPrice*(Point*10))))
-                  {
-                     if(Venta())
-                     {
-                        Alert("Orden de Venta,Ingreso exitoso");
-                     }
-                     
-                  }
-                  break;
+         
+         // debe haber algo que me sirva de boolean sin alterar el chekeo constante y se active con  la formula superior 
+         if(enEstadoDeCompra)
+         {
+               switch(tendencia)
+                       {
+                       
+                       
+                       case 2:
+                        // chekea en cada movimiento si el precio supero el threshold para entrar
+                                   /*Alert("Close alto: ", Close[0]);
+                                   Alert("Threshold: ",(thresholdEnterPrice*(Point)));
+                                   Alert("a superar: ", (Close[1]+(thresholdEnterPrice*(Point))));*/
+                        if(Close[0] > (Close[1]+(thresholdEnterPrice*(Point))))
+                        {
+                         Alert("Case 2 Applied");
+                           if(Compra())
+                           {
+                              Alert("Orden de Compra,Ingreso exitoso");
+                           }
+                        }
+                        break;
+                       case 0:
+                       // chekea en cada movimiento si el precio supero el threshold para entrar
+                                   /*Alert("Close bajo: ", Close[0]);
+                                   Alert("Threshold: ",(thresholdEnterPrice*(Point)));
+                                   Alert("a superar: ", (Close[1]-(thresholdEnterPrice*(Point))));*/
+                        if (Close[0] < (Close[1]-(thresholdEnterPrice*(Point))))
+                        {
+                         Alert("Case 0 Applied");
+                           if(Venta())
+                           {
+                              Alert("Orden de Venta,Ingreso exitoso");
+                           }
                            
-                 }    
+                        }
+                        break;
+                                 
+                       } 
+                 
+                // Alert("Something Interesting ...., tendencia: ", IntegerToString(tendencia));  
+         } 
     }
     
     
@@ -343,20 +370,23 @@ bool IsRightTick(int tendency)
    double slP = (slSize*100)/fullTick;
    
    // for debbuging purposes
-   /*Alert("Tick body percentage: ", DoubleToStr(bodyP));
+   /*
+   Alert("Tick body percentage: ", DoubleToStr(bodyP));
    Alert("Tick Shadow High percentage: ", DoubleToStr(shP));
-   Alert("Tick Shadow Low percentage: ", DoubleToStr(slP));*/
+   Alert("Tick Shadow Low percentage: ", DoubleToStr(slP));
    
+   */
+   //Alert("CUERPO: ",bodyP);
    if (tendency == 2 &&  tickDirection == 2)
    {
-      if(bodyP >= percentageTickBody || slP >= percentageTickShadow)
+      if(bodyP >= percentageTickBody || (slP >= percentageTickShadow && bodyP > minTickBodySize))
       {
         return true; // la inversion se basa en la direccion de la tendencia         
       }
    }
    else if (tendency == 0 && tickDirection == 0)
    {
-      if(bodyP >= percentageTickBody || shP >= percentageTickShadow)
+      if(bodyP >= percentageTickBody || (shP >= percentageTickShadow && bodyP > minTickBodySize))
       {
         return true; // la inversion se basa en la direccion de la tendencia 
       }
@@ -374,7 +404,10 @@ bool Compra()
    double ls = LotSize() ;// lot size// use max risk per trade 
    double price = Ask;
    double sl = NormalizeDouble(Bid - (CrearStopLoss()*Point),Digits);
-   double tp = NormalizeDouble(Bid - (CrearTakeProfit()*Point),Digits);
+   double tp = NormalizeDouble(Bid + (CrearTakeProfit()*Point),Digits);
+   
+   
+   // Alert("LOT SIZE: ",ls);
    
    if( OrderSend(Symbol(),OP_BUY,ls,price,slippage,sl,tp,"BUY",0,0,clrNONE ) )
    {
@@ -390,9 +423,16 @@ bool Venta ()
 {
    double ls = LotSize() ;// lot size// use max risk per trade 
    double price = Bid;
-   double sl = NormalizeDouble(Ask - (CrearStopLoss()*Point),Digits);
+   double sl = NormalizeDouble(Ask + (CrearStopLoss()*Point),Digits);
    double tp = NormalizeDouble(Ask - (CrearTakeProfit()*Point),Digits);
    
+   
+               /*Alert("StopLoss in order: ", DoubleToStr(CrearStopLoss()*Point));
+               Alert("TakeProfit in order: ", DoubleToStr(CrearTakeProfit()*Point));
+               Alert("Price: ", DoubleToStr(price));
+               Alert("StopLoss in order: ", DoubleToStr(sl));
+               Alert("TakeProfit in order: ", DoubleToStr(tp));*/
+   // Alert("LOT SIZE: ",ls);
    if( OrderSend(Symbol(),OP_SELL,ls,price,slippage,sl,tp,"SELL",0,0,clrNONE))
    {
    return true;
@@ -407,6 +447,8 @@ double LotSize ()
    
    double sl = stopLoss != 0 ? stopLoss : CrearStopLoss();
    
+   //Alert("StopLoss: ", sl);
+   
    double lotSize;
    double tickValue = (MarketInfo(Symbol(),MODE_TICKVALUE));
    // Normalizing tick values
@@ -418,6 +460,8 @@ double LotSize ()
    lotSize = ((AccountBalance()*maxRiskPerTrade)/100)/(sl * tickValue);
    lotSize = MathRound(lotSize/MarketInfo(Symbol(),MODE_LOTSTEP))*MarketInfo(Symbol(),MODE_LOTSTEP);
    
+   
+   //Alert("LOT SIZE: ",lotSize);
    return lotSize;
 
 }
@@ -427,6 +471,10 @@ double CrearStopLoss()
    
    double sl = MathAbs(Close[1] - Open [1])  ;
   
+  
+  // Alert("sl Close: ", Close[1]);
+  //Alert("sl Open: ", Open[1]);
+  
    double tempVal = 1; // valor para multiplicar y redondear  
    for(int i=1;i <= (Digits) ; i++)
    {
@@ -435,6 +483,11 @@ double CrearStopLoss()
    
    // debe ser pasado a pips enteros para luego maultiplicar * point
    sl = sl*tempVal;
+   
+   //Alert("StopLoss: ", sl);
+   
+   sl = sl <= minPosibleStopLoss ? minPosibleStopLoss : sl ; // if stoploss is not bigger than minPosibleStopLoss it will be fixed
+   
    return sl;
 }
 
@@ -443,9 +496,11 @@ double CrearTakeProfit()
    
    double sl = CrearStopLoss();
    
-   sl = sl * riskToRewardRatio; 
+   double tp = sl * riskToRewardRatio; 
    
-   return sl;
+   //Alert("TakeProfit: ", tp);
+   
+   return tp;
 }
 
 //=============================== FUNCIONES PARA DEBUG ============================

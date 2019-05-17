@@ -32,7 +32,7 @@ double LotSize (){
    return lotSize;
 
 }*/
-
+/*
 double CrearStopLoss()
 {
 
@@ -51,20 +51,20 @@ double CrearStopLoss()
    Alert("stop loss in pips * Point: ", DoubleToStr(sl*Point));
    return sl;
 }
-
+*/
 
 void OnStart()
   {
   
   
-CrearStopLoss();  
+//CrearStopLoss();  
 
 //Alert("Digits: ", Digits);
 //---
 
 //LotSize();
 
-
+Alert(OrdersTotal());
 
 
 
